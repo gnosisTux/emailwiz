@@ -32,7 +32,6 @@ certdir="/etc/letsencrypt/live/$maildomain"
 selfsigned="no" # yes no
 allow_suboptimal_ciphers="yes" #yes no
 mailbox_format="maildir" # maildir sdbox
-allowed_protocols=" imap pop3 "  #imap pop3
 
 use_cert_config="no"
 country_name="" # IT US UK IN etc etc
@@ -223,29 +222,39 @@ echo "# Dovecot config
 # %d for the domain
 # %h the user's home directory
 
+dovecot_config_version = 2.4.1
+dovecot_storage_version = 2.3.0
 ssl = required
-ssl_cert = <$certdir/fullchain.pem
-ssl_key = <$certdir/privkey.pem
+ssl_server_cert_file = <$certdir/fullchain.pem
+ssl_server_key_file = <$certdir/privkey.pem
 ssl_min_protocol = TLSv1.2
 ssl_cipher_list = "'EECDH+ECDSA+AESGCM:EECDH+aRSA+AESGCM:EECDH+ECDSA+SHA256:EECDH+aRSA+SHA256:EECDH+ECDSA+SHA384:EECDH+ECDSA+SHA256:EECDH+aRSA+SHA384:EDH+aRSA+AESGCM:EDH+aRSA+SHA256:EDH+aRSA:EECDH:!aNULL:!eNULL:!MEDIUM:!LOW:!3DES:!MD5:!EXP:!PSK:!SRP:!DSS:!RC4:!SEED'"
-ssl_prefer_server_ciphers = yes
-ssl_dh = </usr/share/dovecot/dh.pem
+ssl_server_prefer_ciphers = server
+ssl_server_dh_file = /usr/share/dovecot/dh.pem
 auth_mechanisms = plain login
 auth_username_format = %n
 
-protocols = \$protocols $allowed_protocols
+protocols = imap
+
+mail_driver = Mail
+mail_path = ~/Mail
+mail_inbox_path = ~/Mail/Inbox
+mail_driver = $mailbox_format
 
 # Search for valid users in /etc/passwd
-userdb {
+userdb users {
 	driver = passwd
 }
+
 #Fallback: Use plain old PAM to find user passwords
-passdb {
+passdb pam {
 	driver = pam
 }
 
 # Our mail for each user will be in ~/Mail, and the inbox will be ~/Mail/Inbox
 # The LAYOUT option is also important because otherwise, the boxes will be \`.Sent\` instead of \`Sent\`.
+
+
 mail_location = $mailbox_format:~/Mail:INBOX=~/Mail/Inbox:LAYOUT=fs
 namespace inbox {
 	inbox = yes
@@ -280,31 +289,22 @@ service auth {
 }
 
 protocol lda {
-  mail_plugins = \$mail_plugins sieve
+  mail_plugins = sieve
 }
 
 protocol lmtp {
-  mail_plugins = \$mail_plugins sieve
+  mail_plugins = sieve
 }
 
-protocol pop3 {
-  pop3_uidl_format = %08Xu%08Xv
-  pop3_no_flag_updates = yes
+sieve_script personal {
+  driver = file
+  type = personal
+  path = ~/.sieve
+  active_path = ~/.dovecot.sieve  
 }
 
-plugin {
-	sieve = ~/.dovecot.sieve
-	sieve_default = /var/lib/dovecot/sieve/default.sieve
-	#sieve_global_path = /var/lib/dovecot/sieve/default.sieve
-	sieve_dir = ~/.sieve
-	sieve_global_dir = /var/lib/dovecot/sieve/
-}
 " > /etc/dovecot/dovecot.conf
 
-# If using an old version of Dovecot, remove the ssl_dl line.
-case "$(dovecot --version)" in
-	1|2.1*|2.2*) sed -i '/^ssl_dh/d' /etc/dovecot/dovecot.conf ;;
-esac
 
 mkdir /var/lib/dovecot/sieve/
 
