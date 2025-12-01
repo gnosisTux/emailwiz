@@ -222,8 +222,8 @@ echo "# Dovecot config
 # %d for the domain
 # %h the user's home directory
 
-dovecot_config_version = 2.4.1
-dovecot_storage_version = 2.3.0
+dovecot_config_version = 2.4.0
+dovecot_storage_version = 2.4.8
 ssl = required
 ssl_server_cert_file = $certdir/fullchain.pem
 ssl_server_key_file = $certdir/privkey.pem
@@ -232,14 +232,13 @@ ssl_cipher_list = "'EECDH+ECDSA+AESGCM:EECDH+aRSA+AESGCM:EECDH+ECDSA+SHA256:EECD
 ssl_server_prefer_ciphers = server
 ssl_server_dh_file = /usr/share/dovecot/dh.pem
 auth_mechanisms = plain login
-auth_username_format = %n
+auth_username_format = %{user | username }
 
-protocols = imap
+protocols = imap pop3
 
-mail_driver = Mail
-mail_path = ~/Mail
-mail_inbox_path = ~/Mail/Inbox
 mail_driver = $mailbox_format
+mail_driver = Mail
+mail_inbox_path = ~/Mail/Inbox
 
 # Search for valid users in /etc/passwd
 userdb users {
@@ -294,11 +293,16 @@ protocol lmtp {
   mail_plugins = sieve
 }
 
-sieve_script personal {
+protocol pop3 {
+  pop3_uidl_format = %{uid | hex(8)}%{uidvalidity | hex(8)}
+  pop3_no_flag_updates = yes
+}
+
+sieve_script default {
+  name = default
+  type = default
   driver = file
-  type = personal
-  path = ~/.sieve
-  active_path = ~/.dovecot.sieve  
+  path = /var/lib/dovecot/sieve/default.sieve
 }
 
 " > /etc/dovecot/dovecot.conf
